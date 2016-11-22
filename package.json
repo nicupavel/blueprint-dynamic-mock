@@ -1,0 +1,17 @@
+{
+  "name": "blueprint-dynamic-mock",
+  "version": "1.0.0",
+  "description": "Blueprint API Mock Server with dynamic content mocking",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Nicu Pavel",
+  "license": "GPL-3.0",
+  "dependencies": {
+    "drafter": "^1.2.0"
+  }
+}
