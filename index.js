@@ -17,6 +17,7 @@ function registerRoutes(err, prefix, staticRoutes, parametrizedRoutes) {
 		router.setPrefix(prefix);
 		router.registerAll(staticRoutes, parametrizedRoutes, customResponses);
 		router.registerAlias("/apiVer", "/api/4/apiVer");
+		router.registerAlias("/api/apiVer", "/api/4/apiVer");
 
 		//console.log(JSON.stringify(staticRoutes, null, 4));
 		//console.log(JSON.stringify(parametrizedRoutes, null, 4));
@@ -27,6 +28,7 @@ function registerRoutes(err, prefix, staticRoutes, parametrizedRoutes) {
 		});
 
 		server.listen(port);
+		console.log("Server listening on port %s", port);
 	}
 }
 parser('./rainmachine-api/apiary.apib', registerRoutes);
