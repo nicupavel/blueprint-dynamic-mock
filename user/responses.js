@@ -5,7 +5,9 @@
 module.exports =  {
 	"/api/4/dailystats/details": customDailyStatsDetails,
 	"/api/4/mixer": customMixer,
-	"/api/4/watering/log/details": customWaterLogDetails
+	"/api/4/watering/log/details": customWaterLogDetails,
+	"/api/4/watering/available": customAvailableWater,
+	"/api/4/machine/time": customDateTime
 };
 
 function todayTimestamp() {
@@ -35,7 +37,6 @@ function customDailyStatsDetails(url, body) {
 
 function customMixer(url, body) {
 	var json = JSON.parse(body);
-	console.log("Custom: Mixer URL %s", url);
 
 	if ("mixerData" in json) {
 		var data = json.mixerData[0].dailyValues;
@@ -59,7 +60,6 @@ function customMixer(url, body) {
 
 function customWaterLogDetails(url, body) {
 	var json = JSON.parse(body);
-	console.log("Custom: WaterLogDetails URL %s", url);
 
 	var data = json.waterLog.days;
 
@@ -72,6 +72,33 @@ function customWaterLogDetails(url, body) {
 
 		today += 86400;
 	}
+
+	return JSON.stringify(json);
+}
+
+function customAvailableWater(url, body) {
+	var json = JSON.parse(body);
+	var data = json.availableWaterValues;
+
+	//We show available water only in the past
+	var today = todayTimestamp() - 86400 * 7;
+
+	for (var i = data.length - 1; i >=0; i--) {
+		var day = data[i];
+		day.dateTime = timestampToDateStr(today) + " 00:00:00";
+		day.day = today;
+
+		today += 86400;
+	}
+
+	return JSON.stringify(json);
+}
+
+function customDateTime(url, body) {
+	var today = todayTimestamp();
+	var json = {
+		appDate :  new Date(today * 1000).toISOString().replace("T", " ")
+	};
 
 	return JSON.stringify(json);
 }
