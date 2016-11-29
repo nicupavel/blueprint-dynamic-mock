@@ -97,7 +97,7 @@ function customAvailableWater(url, body) {
 function customDateTime(url, body) {
 	var today = todayTimestamp();
 	var json = {
-		appDate :  new Date(today * 1000).toISOString().replace("T", " ")
+		appDate :  new Date(today * 1000).toISOString().replace("T", " ").split(".")[0]
 	};
 
 	return JSON.stringify(json);
