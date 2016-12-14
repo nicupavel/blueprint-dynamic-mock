@@ -1,4 +1,4 @@
 {
 	"/apiVer": "/api/4/apiVer",
-	"/api/apiVer": "/api/4/apiVer"
+	"/time": "/api/4/machine/time"
 }
