@@ -12,6 +12,7 @@
   "author": "Nicu Pavel",
   "license": "GPL-3.0",
   "dependencies": {
-    "drafter": "^1.2.0"
+    "drafter": "^1.2.0",
+    "uuid":  "^2.0.0"
   }
 }

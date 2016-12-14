@@ -5,10 +5,13 @@
 const http = require('http');
 const parser = require('./lib/parser.js');
 const router = require('./lib/router.js');
-const customResponses = require('./user/responses.js');
+
+const config = require('./config.json');
+
+const customAliases = require('./user/aliases.json') || {};
+const customResponses = require('./user/responses.js') || {};
 
 var server = http.createServer();
-var port = 19090;
 
 function registerRoutes(err, prefix, staticRoutes, parametrizedRoutes) {
 	if (err) {
@@ -16,22 +19,19 @@ function registerRoutes(err, prefix, staticRoutes, parametrizedRoutes) {
 	} else {
 		router.setPrefix(prefix);
 		router.registerAll(staticRoutes, parametrizedRoutes, customResponses);
-		router.registerAlias("/apiVer", "/api/4/apiVer");
-		router.registerAlias("/api/apiVer", "/api/4/apiVer");
-
-		//console.log(JSON.stringify(staticRoutes, null, 4));
-		//console.log(JSON.stringify(parametrizedRoutes, null, 4));
+		router.registerAliases(customAliases);
 
 		server.on('request', function(req, res) {
 			var handler = router.route(req);
 			handler(req, res);
 		});
 
-		server.listen(port);
-		console.log("Server listening on port %s", port);
+		server.listen(config.httpPort);
+		console.log("Server listening on port %s", config.httpPort);
 	}
 }
-parser('./rainmachine-api/apiary.apib', registerRoutes);
+
+parser(config.apiPath, registerRoutes);
 
 
 
