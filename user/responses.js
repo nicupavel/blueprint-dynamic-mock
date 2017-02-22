@@ -21,7 +21,8 @@ module.exports =  {
 		"/api/4/watering/available": getAvailableWater,
 		"/api/4/machine/time": getDateTime,
 		"/api/4/program": getProgram,
-		"/api/4/watering/queue": getWateringQueue
+		"/api/4/watering/queue": getWateringQueue,
+		"/api/4/parser": getParser
 	},
 	POST: {
 		"/api/4/auth/login": setLogin,
@@ -142,7 +143,7 @@ function getZone(req, body, callback) {
 
 	var accessToken = getAccessToken(req.url);
 
-	if (accessToken === null || !(accessToken in sessions) || sessions[accessToken].queue.length === 0) {
+	if (!sessionHasQueue(accessToken)) {
 		return callback(body);
 	}
 
@@ -166,7 +167,8 @@ function getZone(req, body, callback) {
 function getProgram(req, body, callback) {
 
 	var accessToken = getAccessToken(req.url);
-	if (accessToken === null || !(accessToken in sessions) || sessions[accessToken].queue.length === 0) {
+
+	if (!sessionHasQueue(accessToken)) {
 		return callback(body);
 	}
 
@@ -186,7 +188,7 @@ function getWateringQueue(req, body, callback) {
 	//We simulate a real watering by using data set by POST zone/n/start in client cookies
 	var accessToken = getAccessToken(req.url);
 
-	if (accessToken === null || !(accessToken in sessions) ||sessions[accessToken].queue.length == 0) {
+	if (!sessionHasQueue(accessToken)) {
 		return callback(body);
 	}
 
@@ -220,6 +222,43 @@ function getWateringQueue(req, body, callback) {
 	return callback(JSON.stringify({ queue: queue }));
 }
 
+
+//Get a parser details
+function getParser(req, body, callback) {
+
+	var url = req.url;
+
+	try {
+		var captures = url.match(/\/parser\/(\d+)\/*(\w*)/);
+		var pid = parseInt(captures[1]);
+		var op = null;
+		if (captures.length > 2) {
+			op =  captures[2];
+		}
+	} catch(e) {
+		return callback(body);
+	}
+
+	console.log("GET: %s Parser: %d, Op: %s", url, pid, op);
+
+	if (op !== "data") {
+		var parser = {
+			"lastRun": null,
+			"lastKnownError": "",
+			"hasForecast": true,
+			"uid": 8,
+			"hasHistorical": false,
+			"description": "North America weather forecast from National Oceanic and Atmospheric Administration",
+			"enabled": true,
+			"custom": false,
+			"isRunning": false,
+			"name": "NOAA Parser"
+		};
+		return callback(JSON.stringify({parser: parser}));
+	}
+
+	return callback(body);
+}
 
 /*
  *  POST method functions
@@ -331,7 +370,6 @@ function setStopAll(req, body, callback) {
 	return callback(body);
 }
 
-
 /*
  * Logic domain functions
  */
@@ -346,8 +384,25 @@ function getAccessToken(url) {
 	return params.access_token;
 }
 
+function inSession(accessToken) {
+	if (accessToken === null || !(accessToken in sessions)) {
+		return false;
+	}
+
+	return true;
+}
+
+function sessionHasQueue(accessToken) {
+	if ( !inSession(accessToken) || sessions[accessToken].queue.length == 0) {
+		return false;
+	}
+
+	return true;
+}
+
+
 function performWateringQueueLogic(accessToken) {
-	if (! (accessToken in sessions)) {
+	if (!inSession(accessToken)) {
 		return;
 	}
 
