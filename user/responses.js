@@ -130,10 +130,9 @@ function getAvailableWater(req, body, callback) {
 
 function getDateTime(req, body, callback) {
 	var today = nowTimestamp();
-	var json = {
-		appDate :  new Date(today * 1000).toISOString().replace("T", " ").split(".")[0]
-	};
-
+	var json = JSON.parse(body);
+	var dateString  = new Date(today * 1000).toISOString().replace("T", " ").split(".")[0];
+	json.appDate = dateString;
 	return callback(JSON.stringify(json));
 }
 
