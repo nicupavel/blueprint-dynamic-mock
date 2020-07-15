@@ -1,15 +1,8 @@
 /**
- * Custom handling of certain URLs, this simulates a watering queue for RainMachine API
- * It works by using or generating a new access_token that will be used as a key in a memory hash
- * which stores current watering queue similar to a session
+ * Custom handling of specified URLs
  *
  * Created by Nicu Pavel on 19.11.2016.
  */
-
-const uuidV4 = require('uuid/v4');
-const urlparser = require('url');
-
-var sessions = {};
 
 module.exports =  {
 	GET: {
@@ -24,109 +17,12 @@ module.exports =  {
 		"/api/4/watering/queue": getWateringQueue,
 		"/api/4/parser": getParser
 	},
-	POST: {
-		"/api/4/auth/login": setLogin,
-		"/api/4/zone": setZone,
-		"/api/4/program": setProgram,
-		"/api/4/watering/stopall": setStopAll
-	}
+	POST: {}
 };
-
-function nowTimestamp() {
-	return Date.now() / 1000 >> 0
-}
-
-//returns YYYY-MM-DD
-function timestampToDateStr(timestamp) {
-	return new Date(timestamp * 1000).toISOString().split('T')[0]
-}
 
 /*
  *  GET method functions
  */
-
-function getProvision(req, body, callback) {
-	if (getAccessToken(req.url) === null) {
-		return callback(JSON.stringify({ "statusCode":  2,  "message": "Not Authenticated !" }), 401);
-	}
-
-	return callback(body);
-}
-
-//Mocks dailystats/details with dates starting from today
-function getDailyStatsDetails(req, body, callback) {
-	var json = JSON.parse(body);
-	var data = json.DailyStatsDetails;
-	var today = nowTimestamp();
-
-	for (var i = 0; i < data.length; i++) {
-		var day = data[i];
-		day.dayTimestamp = today;
-		day.day = timestampToDateStr(today);
-		today += 86400;
-	}
-
-	return callback(JSON.stringify(json));
-}
-
-function getMixer(req, body, callback) {
-	var json = JSON.parse(body);
-
-	if ("mixerData" in json) {
-		var data = json.mixerData[0].dailyValues;
-	} else if ("mixerDataByDate" in json) {
-		var data = json.mixerDataByDate;
-	} else {
-		console.error("Custom: Mixer: Unknown API format");
-		return callback(body);
-	}
-
-	var today = nowTimestamp() - 86400;
-
-	for (var i = 0; i < data.length; i++) {
-		var day = data[i];
-		day.day = timestampToDateStr(today) + " 00:00:00";
-		today += 86400;
-	}
-
-	return callback(JSON.stringify(json));
-}
-
-function getWaterLogDetails(req, body, callback) {
-	var json = JSON.parse(body);
-
-	var data = json.waterLog.days;
-
-	var today = nowTimestamp() - 86400;
-
-	for (var i = 0; i < data.length; i++) {
-		var day = data[i];
-		day.date = timestampToDateStr(today);
-		day.dateTimestamp = today;
-
-		today += 86400;
-	}
-
-	return callback(JSON.stringify(json));
-}
-
-function getAvailableWater(req, body, callback) {
-	var json = JSON.parse(body);
-	var data = json.availableWaterValues;
-
-	//We show available water only in the past
-	var today = nowTimestamp() - 86400 * 7;
-
-	for (var i = data.length - 1; i >=0; i--) {
-		var day = data[i];
-		day.dateTime = timestampToDateStr(today) + " 00:00:00";
-		day.day = today;
-
-		today += 86400;
-	}
-
-	return callback(JSON.stringify(json));
-}
 
 function getDateTime(req, body, callback) {
 	var today = nowTimestamp();
@@ -370,7 +266,7 @@ function setStopAll(req, body, callback) {
 }
 
 /*
- * Logic domain functions
+ * Helper function
  */
 
 function getAccessToken(url) {
@@ -480,18 +376,7 @@ function setZoneInQueue(uid, pid, time, accessToken) {
 	sessions[accessToken].lastAction = now;
 }
 
-var expireInterval = 1 * 60 * 60;
-var interval = setInterval(cleanupSessions, expireInterval * 1000);
-
-function cleanupSessions() {
-	var now = nowTimestamp();
-	for (var s in sessions) {
-		var diff = now - sessions[s].lastAction;
-		if (diff > expireInterval) {
-			delete sessions[s];
-			console.log("Session %s expired diff %s", s, diff);
-		} else {
-			console.log("Session %s not expired diff %s", s, diff);
-		}
-	}
+//returns YYYY-MM-DD
+function timestampToDateStr(timestamp) {
+	return new Date(timestamp * 1000).toISOString().split('T')[0]
 }

@@ -1,4 +1,4 @@
 {
   "httpPort": 19090,
-  "apiPath": "./rainmachine-api/apiary.apib"
+  "apiPath": "./example-api/example-api.md"
 }
