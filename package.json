@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "node index.js",
-    "lint": "eslint ./lib --fix",
+    "lint": "eslint ./lib ./user --fix",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

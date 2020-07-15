@@ -1,8 +1,15 @@
 /**
- * Custom handling of specified URLs
+ * Custom handling of certain URLs, this simulates a watering queue for RainMachine API
+ * It works by using or generating a new access_token that will be used as a key in a memory hash
+ * which stores current watering queue similar to a session
  *
  * Created by Nicu Pavel on 19.11.2016.
  */
+
+const {"v4": uuidV4} = require('uuid');
+const urlparser = require('url');
+
+let sessions = {};
 
 module.exports =  {
 	GET: {
@@ -17,26 +24,124 @@ module.exports =  {
 		"/api/4/watering/queue": getWateringQueue,
 		"/api/4/parser": getParser
 	},
-	POST: {}
+	POST: {
+		"/api/4/auth/login": setLogin,
+		"/api/4/zone": setZone,
+		"/api/4/program": setProgram,
+		"/api/4/watering/stopall": setStopAll
+	}
 };
+
+function nowTimestamp() {
+	return Date.now() / 1000 >> 0
+}
+
+//returns YYYY-MM-DD
+function timestampToDateStr(timestamp) {
+	return new Date(timestamp * 1000).toISOString().split('T')[0]
+}
 
 /*
  *  GET method functions
  */
 
+function getProvision(req, body, callback) {
+	if (getAccessToken(req.url) === null) {
+		return callback(JSON.stringify({ "statusCode":  2,  "message": "Not Authenticated !" }), 401);
+	}
+
+	return callback(body);
+}
+
+//Mocks dailystats/details with dates starting from today
+function getDailyStatsDetails(req, body, callback) {
+	let json = JSON.parse(body);
+	let data = json.DailyStatsDetails;
+	let today = nowTimestamp();
+
+	for (let i = 0; i < data.length; i++) {
+		let day = data[i];
+		day.dayTimestamp = today;
+		day.day = timestampToDateStr(today);
+		today += 86400;
+	}
+
+	return callback(JSON.stringify(json));
+}
+
+function getMixer(req, body, callback) {
+	let json = JSON.parse(body);
+	let data;
+
+	if ("mixerData" in json) {
+		data = json.mixerData[0].dailyValues;
+	} else if ("mixerDataByDate" in json) {
+		data = json.mixerDataByDate;
+	} else {
+		console.error("Custom: Mixer: Unknown API format");
+		return callback(body);
+	}
+
+	let today = nowTimestamp() - 86400;
+
+	for (let i = 0; i < data.length; i++) {
+		let day = data[i];
+		day.day = timestampToDateStr(today) + " 00:00:00";
+		today += 86400;
+	}
+
+	return callback(JSON.stringify(json));
+}
+
+function getWaterLogDetails(req, body, callback) {
+	let json = JSON.parse(body);
+
+	let data = json.waterLog.days;
+
+	let today = nowTimestamp() - 86400;
+
+	for (let i = 0; i < data.length; i++) {
+		let day = data[i];
+		day.date = timestampToDateStr(today);
+		day.dateTimestamp = today;
+
+		today += 86400;
+	}
+
+	return callback(JSON.stringify(json));
+}
+
+function getAvailableWater(req, body, callback) {
+	let json = JSON.parse(body);
+	let data = json.availableWaterValues;
+
+	//We show available water only in the past
+	let today = nowTimestamp() - 86400 * 7;
+
+	for (let i = data.length - 1; i >=0; i--) {
+		let day = data[i];
+		day.dateTime = timestampToDateStr(today) + " 00:00:00";
+		day.day = today;
+
+		today += 86400;
+	}
+
+	return callback(JSON.stringify(json));
+}
+
 function getDateTime(req, body, callback) {
-	var today = nowTimestamp();
-	var json = JSON.parse(body);
-	var dateString  = new Date(today * 1000).toISOString().replace("T", " ").split(".")[0];
+	let today = nowTimestamp();
+	let json = JSON.parse(body);
+	let dateString  = new Date(today * 1000).toISOString().replace("T", " ").split(".")[0];
 	json.appDate = dateString;
 	return callback(JSON.stringify(json));
 }
 
 function getZone(req, body, callback) {
-	var json = JSON.parse(body);
-	var data = json.zones;
+	let json = JSON.parse(body);
+	let data = json.zones;
 
-	var accessToken = getAccessToken(req.url);
+	let accessToken = getAccessToken(req.url);
 
 	if (!sessionHasQueue(accessToken)) {
 		return callback(body);
@@ -45,9 +150,9 @@ function getZone(req, body, callback) {
 	performWateringQueueLogic(accessToken);
 
 	//Mock the response body with simulated watering data
-	for (var i = 0; i < data.length; i++) {
-		var z = data[i];
-		var vz = getZoneFromQueue(z.uid, accessToken);
+	for (let i = 0; i < data.length; i++) {
+		let z = data[i];
+		let vz = getZoneFromQueue(z.uid, accessToken);
 		if (vz) {
 			z.userDuration = vz.time;
 			z.machineDuration = vz.time;
@@ -61,36 +166,35 @@ function getZone(req, body, callback) {
 
 function getProgram(req, body, callback) {
 
-	var accessToken = getAccessToken(req.url);
+	let accessToken = getAccessToken(req.url);
 
 	if (!sessionHasQueue(accessToken)) {
 		return callback(body);
 	}
 
 	performWateringQueueLogic(accessToken);
-	var z = getZoneFromQueue(3, accessToken);
+	let z = getZoneFromQueue(3, accessToken);
 	if (!z || z.pid !== 32) {
 		return callback(body);
 	}
 
-	var json = JSON.parse(body);
-	var data = json.programs;
+	let json = JSON.parse(body);
+	let data = json.programs;
 	data[0].status = 1;
 	return callback(JSON.stringify(json));
 }
 
 function getWateringQueue(req, body, callback) {
 	//We simulate a real watering by using data set by POST zone/n/start in client cookies
-	var accessToken = getAccessToken(req.url);
+	let accessToken = getAccessToken(req.url);
 
 	if (!sessionHasQueue(accessToken)) {
 		return callback(body);
 	}
 
-	var queue = [];
-	var now = nowTimestamp();
-	for(var i = 0; i < sessions[accessToken].queue.length; i++) {
-		var z = sessions[accessToken].queue[i];
+	let queue = [];
+	for(let i = 0; i < sessions[accessToken].queue.length; i++) {
+		let z = sessions[accessToken].queue[i];
 		if (z.time > 0) {
 			queue.push({
 				"availableWater": 0,
@@ -121,12 +225,13 @@ function getWateringQueue(req, body, callback) {
 //Get a parser details
 function getParser(req, body, callback) {
 
-	var url = req.url;
+	let url = req.url;
+	let pid;
+	let op = null;
 
 	try {
-		var captures = url.match(/\/parser\/(\d+)\/*(\w*)/);
-		var pid = parseInt(captures[1]);
-		var op = null;
+		let captures = url.match(/\/parser\/(\d+)\/*(\w*)/);
+		pid = parseInt(captures[1]);		
 		if (captures.length > 2) {
 			op =  captures[2];
 		}
@@ -137,7 +242,7 @@ function getParser(req, body, callback) {
 	console.log("GET: %s Parser: %d, Op: %s", url, pid, op);
 
 	if (op !== "data") {
-		var parser = {
+		let parser = {
 			"lastRun": null,
 			"lastKnownError": "",
 			"hasForecast": true,
@@ -161,9 +266,9 @@ function getParser(req, body, callback) {
 
 //Generates a UUID for token. This will be used on further request as a sessionid
 function setLogin(req, body, callback) {
-	var json = JSON.parse(body);
+	let json = JSON.parse(body);
 
-	var uuid = uuidV4();
+	let uuid = uuidV4();
 
 	sessions[uuid] = {
 		queue: []
@@ -177,12 +282,14 @@ function setLogin(req, body, callback) {
 //Start/Stop a program
 function setProgram(req, body, callback) {
 
-	var url = req.url;
+	let url = req.url;
+	let pid;
+	let op;
 
 	try {
-		var captures = url.match(/\/program\/(\d+)\/(\w+)/);
-		var pid = parseInt(captures[1]);
-		var op = captures[2];
+		let captures = url.match(/\/program\/(\d+)\/(\w+)/);
+		pid = parseInt(captures[1]);
+		op = captures[2];
 	} catch(e) {
 		return callback(body);
 	}
@@ -206,12 +313,14 @@ function setProgram(req, body, callback) {
 //Set zone watering time in virtual watering queue
 function setZone(req, body, callback) {
 
-	var url = req.url;
+	let url = req.url;
+	let uid;
+	let op;
 
 	try {
-		var captures = url.match(/\/zone\/(\d+)\/(\w+)/);
-		var uid = parseInt(captures[1]);
-		var op = captures[2];
+		let captures = url.match(/\/zone\/(\d+)\/(\w+)/);
+		uid = parseInt(captures[1]);
+		op = captures[2];
 	} catch(e) {
 		return callback(body);
 	}
@@ -222,7 +331,7 @@ function setZone(req, body, callback) {
 		return callback(body);
 	}
 
-	var accessToken = getAccessToken(url);
+	let accessToken = getAccessToken(url);
 
 	if (op === "stop") {
 		setZoneInQueue(uid, 0, 0, accessToken);
@@ -230,7 +339,7 @@ function setZone(req, body, callback) {
 	}
 
 	//For start op read the body of the call that contains the time amount
-	var recvbody = '';
+	let recvbody = '';
 
 	req.on('data', function (data) {
 		recvbody += data;
@@ -242,7 +351,7 @@ function setZone(req, body, callback) {
 	req.on('end', function () {
 		try {
 
-			var time = JSON.parse(recvbody).time;
+			let time = JSON.parse(recvbody).time;
 			setZoneInQueue(uid, 0, time, accessToken);
 			return callback(body);
 		} catch(e){
@@ -255,7 +364,7 @@ function setZone(req, body, callback) {
 
 function setStopAll(req, body, callback) {
 
-	var accessToken = getAccessToken(req.url);
+	let accessToken = getAccessToken(req.url);
 
 	if (accessToken) {
 		sessions[accessToken].queue = [];
@@ -266,11 +375,11 @@ function setStopAll(req, body, callback) {
 }
 
 /*
- * Helper function
+ * Logic domain functions
  */
 
 function getAccessToken(url) {
-	var params = urlparser.parse(url, true).query;
+	let params = urlparser.parse(url, true).query;
 
 	if (!("access_token" in params)) {
 		return null;
@@ -301,10 +410,11 @@ function performWateringQueueLogic(accessToken) {
 		return;
 	}
 
-	var now = nowTimestamp();
+	let now = nowTimestamp();
+	let z;
 
-	for (var i = sessions[accessToken].queue.length - 1; i >= 0; i--) {
-		var z = sessions[accessToken].queue[i];
+	for (let i = sessions[accessToken].queue.length - 1; i >= 0; i--) {
+		z = sessions[accessToken].queue[i];
 		z.remaining = z.start + z.time - now;
 		z.state = 2;
 
@@ -322,8 +432,8 @@ function getZoneFromQueue(uid, accessToken) {
 		return null;
 	}
 
-	for (var i = 0; i < sessions[accessToken].queue.length; i++) {
-		var z = sessions[accessToken].queue[i];
+	for (let i = 0; i < sessions[accessToken].queue.length; i++) {
+		let z = sessions[accessToken].queue[i];
 		if (z.uid == uid) {
 			return z;
 		}
@@ -334,14 +444,14 @@ function getZoneFromQueue(uid, accessToken) {
 
 function setZoneInQueue(uid, pid, time, accessToken) {
 
- 	if (accessToken === null) {
+	if (accessToken === null) {
 		console.error("No session token in URL. Not adding zone.");
 		return;
 	}
 
 	time = parseInt(time);
 
-	var now = nowTimestamp();
+	let now = nowTimestamp();
 
 	if (!(accessToken in sessions)) {
 		sessions[accessToken] = {
@@ -349,8 +459,7 @@ function setZoneInQueue(uid, pid, time, accessToken) {
 		};
 	}
 
-	var found = false;
-	var z = getZoneFromQueue(uid, accessToken);
+	let z = getZoneFromQueue(uid, accessToken);
 
 	if (z) {
 		if (z.pid !== pid) {
@@ -376,7 +485,19 @@ function setZoneInQueue(uid, pid, time, accessToken) {
 	sessions[accessToken].lastAction = now;
 }
 
-//returns YYYY-MM-DD
-function timestampToDateStr(timestamp) {
-	return new Date(timestamp * 1000).toISOString().split('T')[0]
+function cleanupSessions() {
+	let now = nowTimestamp();
+	for (let s in sessions) {
+		let diff = now - sessions[s].lastAction;
+		if (diff > expireInterval) {
+			delete sessions[s];
+			console.log("Session %s expired diff %s", s, diff);
+		} else {
+			console.log("Session %s not expired diff %s", s, diff);
+		}
+	}
 }
+
+let expireInterval = 1 * 60 * 60;
+setInterval(cleanupSessions, expireInterval * 1000);
+

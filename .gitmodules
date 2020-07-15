@@ -1,0 +1,3 @@
+[submodule "rainmachine-api"]
+	path = rainmachine-api
+	url = https://github.com/nicupavel/rainmachine-api.git

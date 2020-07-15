@@ -11,7 +11,7 @@ const config = require('./config.json');
 const customAliases = require('./user/aliases.json') || {};
 const customResponses = require('./user/responses.js') || {};
 
-var server = http.createServer();
+let server = http.createServer();
 
 function registerRoutes(err, prefix, staticRoutes, parametrizedRoutes) {
 	if (err) {
@@ -22,7 +22,7 @@ function registerRoutes(err, prefix, staticRoutes, parametrizedRoutes) {
 		router.registerAliases(customAliases);
 
 		server.on('request', function(req, res) {
-			var handler = router.route(req);
+			let handler = router.route(req);
 			handler(req, res);
 		});
 
