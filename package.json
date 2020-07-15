@@ -7,12 +7,29 @@
     "test": "tests"
   },
   "scripts": {
+    "start": "node index.js",
+    "lint": "eslint ./lib --fix",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "Nicu Pavel",
+  "keywords": [
+    "apiary",
+    "api",
+    "mock",
+    "api-blueprint",
+    "blueprint",
+    "swagger"
+  ],
+  "author": "Nicu Pavel <npavel@linuxconsulting.ro>",
   "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/nicupavel/blueprint-dynamic-mock.git"
+  },
   "dependencies": {
-    "drafter": "^1.2.0",
-    "uuid":  "^2.0.0"
+    "drafter.js": "^2.6.2",
+    "uuid": "^2.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^7.4.0"
   }
 }
