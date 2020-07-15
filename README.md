@@ -18,13 +18,12 @@ Creates a mock server from a [Blueprint API file](https://github.com/apiaryio/ap
 2. Edit *user/responses.json* and add any dynamic responses that you need for API calls. If none defined the static response from API file is returned. See responses.json for an example.
    
 
-## More examples
+## In depth example
 This project is used in [RainMachine Web UI Demo](https://demo.labs.rainmachine.com) to mock the entire [RainMachine API](https://github.com/nicupavel/rainmachine-api). *rainmachine* branch has the entire example that is used live.
 To run RainMachine example:
 ```
-git checkout rainmachine
-mkdir rainmachine-api
-curl https://raw.githubusercontent.com/nicupavel/rainmachine-api/master/apiary.apib -o rainmachine-api/apiary.apib
+git checkout origin/rainmachine -b rainmachine
+git submodule update --init --recursive
 npm run start
 ```
 
